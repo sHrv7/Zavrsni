@@ -178,16 +178,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   score: 0
   maxEvolveValue: 1
-  neuronsPerRow: 0a0000000a0000000a0000000a00000003000000
+  neuronsPerRow: 0a000000080000000400000003000000
   numberOfRays: 5
   rayLength: 50
   visibleLayers:
     serializedVersion: 2
     m_Bits: 1
   wastedTimeMultiplier: 0.05
-  movementEncourangementMultiplier: 5
+  movementEncourangementMultiplier: 0.25
+  speedEncourangementMultiplier: 0.05
   goalScore: 250
-  crashPunishment: 50
+  crashPunishment: 150
   rb: {fileID: 0}
 --- !u!114 &6125384353882654667
 MonoBehaviour:
@@ -201,11 +202,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82cc5397728d5e14bb1f10fa43770700, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  acceleration: 30
+  acceleration: 25
   maxSpeed: 50
-  steering: 5
-  decelerationForce: 10
-  brakingForce: 35
+  steering: 7.5
+  decelerationForce: 15
+  brakingForce: 40
   isPlayerControlled: 0
   verticalInput: 0
   horizontalInput: 0
