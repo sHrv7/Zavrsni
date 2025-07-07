@@ -19,6 +19,7 @@ public class Car : MonoBehaviour
     [Header("Score")]
     public float wastedTimeMultiplier;
     public float movementEncourangementMultiplier;
+    public float speedEncourangementMultiplier;
     public int goalScore;
     public int crashPunishment;
 
@@ -51,7 +52,8 @@ public class Car : MonoBehaviour
     void FixedUpdate()
     {
         score += car.verticalInput * Time.deltaTime * movementEncourangementMultiplier;
-        //score -= Time.deltaTime * wastedTimeMultiplier;
+        score += rb.linearVelocity.magnitude * Time.deltaTime * speedEncourangementMultiplier;
+        score -= Time.deltaTime * wastedTimeMultiplier;
     }
 
 
@@ -69,36 +71,41 @@ public class Car : MonoBehaviour
         for (int i = 0; i < rays.Length; i++)
         {
             RaycastHit2D hit = Physics2D.Raycast(rays[i].origin, rays[i].direction, rayLength, visibleLayers);
-            if (hit.transform == null)
+
+            float normalizedDistance = 1f;  // Default: no obstacle (max visibility)
+            float goalSeen = 0f;
+
+            if (hit.transform != null)
             {
-                brain.SetInput(i, -1);
-                brain.SetInput(rays.Length + i, -1);
-                Debug.DrawRay(rays[i].origin, rays[i].direction * rayLength, Color.gray);
-            }
-            else
-            {
-                brain.SetInput(i, hit.distance / rayLength);
+                normalizedDistance = hit.distance / rayLength;
+
                 if (hit.transform.CompareTag("Goal"))
                 {
-                    brain.SetInput(rays.Length + i, 1);
+                    goalSeen = 1f;
+                    score += 0.5f;  // bonus for seeing goal
                     Debug.DrawLine(rays[i].origin, hit.point, Color.green);
                 }
                 else
                 {
-                    brain.SetInput(rays.Length + i, 0);
                     Debug.DrawLine(rays[i].origin, hit.point, Color.red);
                 }
-
             }
+            else
+            {
+                Debug.DrawRay(rays[i].origin, rays[i].direction * rayLength, Color.gray);
+            }
+
+            brain.SetInput(i, normalizedDistance);
+            brain.SetInput(rays.Length + i, goalSeen);
         }
     }
 
 
     void GetOutputs()
     {
-        car.verticalInput = brain.GetOutput(0);
-        car.horizontalInput = brain.GetOutput(1);
-        car.stopInput = brain.GetOutput(2);
+        car.verticalInput = Mathf.Clamp(brain.GetOutput(0), -1f, 1f);
+        car.horizontalInput = Mathf.Clamp(brain.GetOutput(1), -1f, 1f);
+        car.stopInput = Mathf.Clamp01(brain.GetOutput(2));
     }
 
     private void OnCollisionEnter2D(Collision2D collision)

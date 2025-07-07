@@ -1,4 +1,7 @@
+using Newtonsoft.Json;
+using System.IO;
 using UnityEngine;
+
 
 public class Network
 {
@@ -6,6 +9,10 @@ public class Network
     public int rowCount;
     public float[][] neuronValues;
     public float[][][] weights;
+
+    private const string saveFileName = "SavedNetworks/network_weights.json";
+
+
 
     // Copy constructor
     public Network(Network other)
@@ -86,20 +93,24 @@ public class Network
         }
     }
 
-
     public void Evolve(float chanceToMutate)
     {
-        if (Random.Range(1, 101) <= chanceToMutate)
+        for (int currentRow = 0; currentRow < weights.Length; currentRow++)
         {
-            int currentRow = Random.Range(0, rowCount - 1);
-            int sourceNeuron = Random.Range(0, weights[currentRow].Length);
-            int targetNeuron = Random.Range(0, weights[currentRow][sourceNeuron].Length);
-            weights[currentRow][sourceNeuron][targetNeuron] += Random.Range(-maxEvolveValue, maxEvolveValue);
-            Debug.Log("Evolved");
-
-            Evolve(chanceToMutate);
+            for (int sourceNeuron = 0; sourceNeuron < weights[currentRow].Length; sourceNeuron++)
+            {
+                for (int targetNeuron = 0; targetNeuron < weights[currentRow][sourceNeuron].Length; targetNeuron++)
+                {
+                    if (Random.Range(0f, 100f) < chanceToMutate)
+                    {
+                        weights[currentRow][sourceNeuron][targetNeuron] += Random.Range(-maxEvolveValue, maxEvolveValue) / 4;
+                        //Debug.Log("Evolved");
+                    }
+                }
+            }
         }
     }
+
 
     public void SetInput(int index, float value)
     {
@@ -109,5 +120,50 @@ public class Network
     {
         return neuronValues[rowCount - 1][index];
     }
+
+    public void SaveWeights()
+    {
+        WeightsData data = new WeightsData { weights = this.weights };
+
+        string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+
+        string path = Path.Combine(Application.dataPath, saveFileName);
+        File.WriteAllText(path, json);
+
+#if UNITY_EDITOR
+        UnityEditor.AssetDatabase.Refresh(); // Refresh editor
+#endif
+
+        Debug.Log("Weights saved to " + path);
+    }
+
+    public void LoadWeights()
+    {
+        string path = Path.Combine(Application.dataPath, saveFileName);
+        if (!File.Exists(path))
+        {
+            Debug.LogError("Save file not found at " + path);
+            return;
+        }
+
+        string json = File.ReadAllText(path);
+        WeightsData data = JsonConvert.DeserializeObject<WeightsData>(json);
+
+        if (data != null && data.weights != null)
+        {
+            this.weights = data.weights;
+        }
+        else
+        {
+            Debug.LogError("Failed to deserialize weights.");
+        }
+    }
+
 }
 
+
+[System.Serializable]
+public class WeightsData
+{
+    public float[][][] weights;
+}

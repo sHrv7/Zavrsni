@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -23,14 +24,14 @@ public class Manager : MonoBehaviour
 
     private float currentTime = 0;
     private int currentGeneration = 0;
-    private float prevGenerationAverageScore = 0;
     private float prevGenerationHighScore = 0;
 
     public Text generationText;
-    public Text prevGenerationAverageScoreText;
     public Text prevGenerationHighScoreText;
-    public Slider timeScaleSlider;
-    public Text timeScaleText;
+
+    public bool loadFromFile = false;
+    public int saveToFileEvery = 10;
+
 
     void Start()
     {
@@ -38,6 +39,12 @@ public class Manager : MonoBehaviour
         {
             Car c = Instantiate(car, transform.position, Quaternion.identity, transform).GetComponent<Car>();
             c.Init();
+
+            if (loadFromFile)
+            {
+                c.brain.LoadWeights();
+            }
+
             cars.Add(c);
         }
     }
@@ -60,55 +67,47 @@ public class Manager : MonoBehaviour
             generationText.text = "Current generation: " + currentGeneration;
             cars.Sort((car1, car2) => car2.score.CompareTo(car1.score));
 
-            int count = cars.Count;
-            prevGenerationAverageScore = 0;
-            prevGenerationHighScore = 0;
-
-            for (int i = cars.Count - 1; i >= 0; i--)
+            if (currentGeneration % saveToFileEvery == 0)
             {
-                prevGenerationAverageScore += cars[i].score;
+                cars[0].brain.SaveWeights();
+            }
 
-                if (cars[i].score > prevGenerationHighScore)
-                {
-                    prevGenerationHighScore = cars[i].score;
-                }
+            prevGenerationHighScore = 0;
+            if (cars.Count > 0)
+            {
+                prevGenerationHighScore = cars[0].score;
+            }
 
-                if (i < numberOfParents)
+            List<Car> survivors = cars.Take(numberOfParents).ToList();
+            cars.ForEach(c => Destroy(c.gameObject));
+            cars.Clear();
+
+            foreach (Car parent in survivors)
+            {
+                for (int j = 0; j < numberOfChildren; j++)
                 {
-                    if (cars[i].score <= 0)
+                    Car c = Instantiate(car, transform.position, Quaternion.identity, transform).GetComponent<Car>();
+
+                    if (parent.score <= 0)
                     {
-                        Destroy(cars[i].gameObject);
-                        cars.RemoveAt(i);
-
-                        for (int j = 0; j < numberOfChildren; j++)
-                        {
-                            Car c = Instantiate(car, transform.position, Quaternion.identity, transform).GetComponent<Car>();
-                            c.Init();
-                            cars.Add(c);
-                        }
+                        // Bad parent: start from scratch
+                        c.Init();
                     }
                     else
                     {
-                        for (int j = 0; j < numberOfChildren; j++)
-                        {
-                            Car c = Instantiate(car, transform.position, Quaternion.identity, transform).GetComponent<Car>();
-                            c.brain = new Network(cars[i].brain);
-
+                        // Good parent: clone and evolve
+                        c.brain = new Network(parent.brain);
+                        if (j != 0)
                             c.brain.Evolve(chanceToMutate);
-
-                            cars.Add(c);
-                        }
-                        Destroy(cars[i].gameObject);
-                        cars.RemoveAt(i);
                     }
-                }
-                else
-                {
-                    Destroy(cars[i].gameObject);
-                    cars.RemoveAt(i);
+
+                    cars.Add(c);
                 }
             }
 
+            survivors.ForEach(c => Destroy(c.gameObject));
+
+            // Add new random cars each generation
             for (int i = 0; i < amountOfNewCarsAdded; i++)
             {
                 Car c = Instantiate(car, transform.position, Quaternion.identity, transform).GetComponent<Car>();
@@ -116,19 +115,10 @@ public class Manager : MonoBehaviour
                 cars.Add(c);
             }
 
-            prevGenerationAverageScore /= count;
 
-            prevGenerationAverageScoreText.text = "Previous generation average score: " + prevGenerationAverageScore;
             prevGenerationHighScoreText.text = "Previous generation high score: " + prevGenerationHighScore;
 
         }
     }
 
-    public void ChangeTimeScale()
-    {
-        Time.timeScale = timeScaleSlider.value;
-        Time.fixedDeltaTime = 0.02f / Time.timeScale;
-
-        timeScaleText.text = "Speed multiplier: " + timeScaleSlider.value;
-    }
 }
